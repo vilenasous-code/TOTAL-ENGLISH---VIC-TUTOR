@@ -20,24 +20,37 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   });
 
   useEffect(() => {
-    // Detecta se estamos no ambiente especial do Google AI Studio
-    if (window.aistudio) {
-      setIsGoogleEnvironment(true);
-      const checkKey = async () => {
-        if (window.aistudio?.hasSelectedApiKey) {
+    // Detecta ambiente com segurança
+    const checkEnvironment = async () => {
+      // 1. Verifica se é ambiente Google AI Studio
+      if (typeof window !== 'undefined' && window.aistudio) {
+        setIsGoogleEnvironment(true);
+        if (typeof window.aistudio.hasSelectedApiKey === 'function') {
           const selected = await window.aistudio.hasSelectedApiKey();
-          setHasKey(selected);
+          if (selected) {
+            setHasKey(true);
+            return;
+          }
         }
-      };
-      checkKey();
-    } else {
-      // Se estiver na web normal, verifica o localStorage
+      }
+
+      // 2. Verifica se há chave injetada via process (fallback)
+      try {
+        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+          setHasKey(true);
+          return;
+        }
+      } catch (e) {}
+
+      // 3. Verifica localStorage
       const savedKey = localStorage.getItem('VIC_API_KEY');
-      if (savedKey) {
+      if (savedKey && savedKey.length > 10) {
         setHasKey(true);
         setManualKey(savedKey);
       }
-    }
+    };
+
+    checkEnvironment();
   }, []);
 
   const categories = [
@@ -84,7 +97,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       localStorage.setItem('VIC_API_KEY', manualKey.trim());
       setHasKey(true);
     } else {
-      alert("Por favor, insira uma chave API válida.");
+      alert("Por favor, insira uma chave API válida. Ela deve ter mais de 20 caracteres.");
     }
   };
 
@@ -233,20 +246,28 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                       placeholder="Cole sua Gemini API Key aqui"
                       className="w-full p-3 rounded-xl border border-slate-200 text-xs outline-none focus:border-blue-500"
                     />
-                    <p className="text-[9px] text-slate-400">Sua chave é salva localmente e nunca sai do seu navegador.</p>
+                    <p className="text-[9px] text-slate-400">Gere sua chave em aistudio.google.com</p>
                   </div>
                 )}
 
-                <button 
-                  onClick={handleConnectKey} 
-                  className={`w-full py-3 rounded-xl text-[10px] font-black uppercase transition-all ${hasKey ? 'bg-green-100 text-green-700' : 'bg-white border border-slate-200'}`}
-                >
-                  {hasKey ? 'Chave Ativa' : 'Validar e Conectar'}
-                </button>
+                {!hasKey && (
+                  <button 
+                    onClick={handleConnectKey} 
+                    className="w-full py-3 rounded-xl text-[10px] font-black uppercase transition-all bg-white border border-slate-200 hover:bg-slate-50"
+                  >
+                    Validar e Conectar
+                  </button>
+                )}
+                
+                {hasKey && (
+                   <div className="text-center py-2">
+                      <span className="text-[10px] font-black text-green-600 uppercase">✓ Chave pronta para uso</span>
+                   </div>
+                )}
               </div>
               
               <div className="text-center">
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-[10px] font-black text-slate-400 uppercase underline">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-slate-400 uppercase underline">
                   Não tem uma chave? Gere uma grátis aqui
                 </a>
               </div>

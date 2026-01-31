@@ -2,26 +2,46 @@
 import { GoogleGenAI, Modality, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
+// Função ultra-segura para obter a chave sem quebrar o código
+const getApiKey = (): string => {
+  // 1. Tenta buscar de forma segura no objeto global (previne ReferenceError)
+  try {
+    // Verifica se process existe no escopo global de forma que não lance exceção
+    const envKey = (window as any).process?.env?.API_KEY;
+    if (envKey) return envKey;
+  } catch (e) {}
+
+  // 2. Tenta buscar no localStorage (usado na Hostinger após o Onboarding)
+  try {
+    const savedKey = localStorage.getItem('VIC_API_KEY');
+    if (savedKey) return savedKey;
+  } catch (e) {}
+
+  return '';
+};
+
 const getAI = () => {
-  // Tenta pegar a chave do ambiente (Google AI Studio) ou do localStorage (Web normal)
-  const key = process.env.API_KEY || localStorage.getItem('VIC_API_KEY');
-  
+  const key = getApiKey();
   if (!key) {
-    throw new Error("API Key missing. Please configure your Gemini API Key.");
+    // Em vez de lançar erro fatal, retornamos um sinal para o app lidar
+    throw new Error("CHAVE_AUSENTE");
   }
   return new GoogleGenAI({ apiKey: key });
 };
 
 async function handleGeminiError(error: any) {
   const errorMessage = error?.message || "";
-  // Se estiver no ambiente do Google, usa a ferramenta nativa de seleção de chave
-  if (errorMessage.includes("Requested entity was not found") || errorMessage.includes("API_KEY_INVALID")) {
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
+  
+  if (errorMessage === "CHAVE_AUSENTE" || 
+      errorMessage.includes("API_KEY_INVALID") || 
+      errorMessage.includes("Requested entity was not found")) {
+    
+    // Se estiver no ambiente do Google, tenta o seletor deles
+    if (typeof window !== 'undefined' && (window as any).aistudio?.openSelectKey) {
+      await (window as any).aistudio.openSelectKey();
     } else {
-      // Caso contrário, limpa a chave local para forçar novo input no onboarding
+      // Caso contrário, limpa e avisa o sistema de Onboarding
       localStorage.removeItem('VIC_API_KEY');
-      window.location.reload();
     }
   }
   throw error;
