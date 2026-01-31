@@ -9,7 +9,9 @@ interface OnboardingProps {
 
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const [step, setStep] = useState(1);
+  const [isGoogleEnvironment, setIsGoogleEnvironment] = useState(false);
   const [hasKey, setHasKey] = useState(false);
+  const [manualKey, setManualKey] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,13 +20,24 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   });
 
   useEffect(() => {
-    const checkKey = async () => {
-      if (window.aistudio?.hasSelectedApiKey) {
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setHasKey(selected);
+    // Detecta se estamos no ambiente especial do Google AI Studio
+    if (window.aistudio) {
+      setIsGoogleEnvironment(true);
+      const checkKey = async () => {
+        if (window.aistudio?.hasSelectedApiKey) {
+          const selected = await window.aistudio.hasSelectedApiKey();
+          setHasKey(selected);
+        }
+      };
+      checkKey();
+    } else {
+      // Se estiver na web normal, verifica o localStorage
+      const savedKey = localStorage.getItem('VIC_API_KEY');
+      if (savedKey) {
+        setHasKey(true);
+        setManualKey(savedKey);
       }
-    };
-    checkKey();
+    }
   }, []);
 
   const categories = [
@@ -64,9 +77,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   };
 
   const handleConnectKey = async () => {
-    if (window.aistudio?.openSelectKey) {
+    if (isGoogleEnvironment && window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
       setHasKey(true);
+    } else if (manualKey.trim().length > 20) {
+      localStorage.setItem('VIC_API_KEY', manualKey.trim());
+      setHasKey(true);
+    } else {
+      alert("Por favor, insira uma chave API válida.");
     }
   };
 
@@ -107,19 +125,19 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         {step === 1 && (
           <div className="space-y-6 animate-in slide-in-from-right-4">
             <div>
-              <h1 className="text-3xl font-black mb-2" style={{ color: COLORS.navy }}>Welcome!</h1>
-              <p className="text-slate-500 text-sm">Let's set up your profile for the best experience. 👋</p>
+              <h1 className="text-3xl font-black mb-2" style={{ color: COLORS.navy }}>Bem-vindo!</h1>
+              <p className="text-slate-500 text-sm">Vamos configurar seu perfil para a melhor experiência. 👋</p>
             </div>
             
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Name</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Nome</label>
                 <input 
                   type="text" 
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
                   className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl outline-none focus:border-blue-300 font-medium"
-                  placeholder="Your name"
+                  placeholder="Seu nome"
                 />
               </div>
               <div className="space-y-1">
@@ -129,7 +147,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
                   className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl outline-none focus:border-blue-300 font-medium"
-                  placeholder="your@email.com"
+                  placeholder="seu@email.com"
                 />
               </div>
             </div>
@@ -140,7 +158,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               className="w-full py-4 rounded-2xl text-white font-black text-sm uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-30"
               style={{ backgroundColor: COLORS.navy }}
             >
-              Next Step
+              Próximo Passo
             </button>
           </div>
         )}
@@ -148,8 +166,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         {step === 2 && (
           <div className="space-y-6 animate-in slide-in-from-right-4">
             <div>
-              <h1 className="text-3xl font-black mb-2" style={{ color: COLORS.navy }}>Interests</h1>
-              <p className="text-slate-500 text-sm">Select topics you'd like to discuss with Vic. 🚀</p>
+              <h1 className="text-3xl font-black mb-2" style={{ color: COLORS.navy }}>Interesses</h1>
+              <p className="text-slate-500 text-sm">Selecione tópicos que você gostaria de conversar com a Vic. 🚀</p>
             </div>
 
             <div className="space-y-6">
@@ -182,7 +200,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               className="w-full py-4 rounded-2xl text-white font-black text-sm uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-30"
               style={{ backgroundColor: COLORS.navy }}
             >
-              Continue
+              Continuar
             </button>
           </div>
         )}
@@ -190,27 +208,46 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         {step === 3 && (
           <div className="space-y-6 animate-in slide-in-from-right-4">
             <div>
-              <h1 className="text-3xl font-black mb-2" style={{ color: COLORS.navy }}>Connectivity</h1>
-              <p className="text-slate-500 text-sm">Vic needs an API key to think and speak. ⚡️</p>
+              <h1 className="text-3xl font-black mb-2" style={{ color: COLORS.navy }}>Conectividade</h1>
+              <p className="text-slate-500 text-sm">A Vic precisa de uma chave API para pensar e falar. ⚡️</p>
             </div>
 
             <div className="space-y-4">
-              <div className={`p-6 rounded-[2rem] border transition-all flex items-center gap-4 ${hasKey ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}`}>
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${hasKey ? 'bg-green-500 text-white' : 'bg-white text-slate-300'}`}>
-                  <i className={`fas ${hasKey ? 'fa-check' : 'fa-key'}`}></i>
+              <div className={`p-6 rounded-[2rem] border transition-all flex flex-col gap-4 ${hasKey ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${hasKey ? 'bg-green-500 text-white' : 'bg-white text-slate-300'}`}>
+                    <i className={`fas ${hasKey ? 'fa-check' : 'fa-key'}`}></i>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm">Conexão Gemini</h4>
+                    <p className="text-[10px] text-slate-500 uppercase font-black">{hasKey ? 'Conectado' : 'Ação Necessária'}</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-sm">Gemini Connection</h4>
-                  <p className="text-[10px] text-slate-500 uppercase font-black">{hasKey ? 'Connected' : 'Action Required'}</p>
-                </div>
-                {!hasKey && (
-                  <button onClick={handleConnectKey} className="px-4 py-2 bg-white rounded-full text-[10px] font-black border border-slate-200">Connect</button>
+
+                {!isGoogleEnvironment && !hasKey && (
+                  <div className="space-y-2 mt-2">
+                    <input 
+                      type="password"
+                      value={manualKey}
+                      onChange={(e) => setManualKey(e.target.value)}
+                      placeholder="Cole sua Gemini API Key aqui"
+                      className="w-full p-3 rounded-xl border border-slate-200 text-xs outline-none focus:border-blue-500"
+                    />
+                    <p className="text-[9px] text-slate-400">Sua chave é salva localmente e nunca sai do seu navegador.</p>
+                  </div>
                 )}
+
+                <button 
+                  onClick={handleConnectKey} 
+                  className={`w-full py-3 rounded-xl text-[10px] font-black uppercase transition-all ${hasKey ? 'bg-green-100 text-green-700' : 'bg-white border border-slate-200'}`}
+                >
+                  {hasKey ? 'Chave Ativa' : 'Validar e Conectar'}
+                </button>
               </div>
               
               <div className="text-center">
-                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[10px] font-black text-slate-400 uppercase underline">
-                  Don't have a key? Get one here (Paid project required)
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-[10px] font-black text-slate-400 uppercase underline">
+                  Não tem uma chave? Gere uma grátis aqui
                 </a>
               </div>
             </div>
@@ -221,7 +258,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               className="w-full py-5 rounded-3xl text-white font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-30"
               style={{ backgroundColor: COLORS.red }}
             >
-              Start Practice
+              Começar Treinamento
             </button>
           </div>
         )}

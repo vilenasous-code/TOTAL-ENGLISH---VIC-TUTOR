@@ -3,17 +3,25 @@ import { GoogleGenAI, Modality, Type, GenerateContentResponse } from "@google/ge
 import { SYSTEM_PROMPT } from "../constants";
 
 const getAI = () => {
-  if (!process.env.API_KEY) {
-    throw new Error("No API Key configured. Please select one in the connection settings.");
+  // Tenta pegar a chave do ambiente (Google AI Studio) ou do localStorage (Web normal)
+  const key = process.env.API_KEY || localStorage.getItem('VIC_API_KEY');
+  
+  if (!key) {
+    throw new Error("API Key missing. Please configure your Gemini API Key.");
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey: key });
 };
 
 async function handleGeminiError(error: any) {
   const errorMessage = error?.message || "";
+  // Se estiver no ambiente do Google, usa a ferramenta nativa de seleção de chave
   if (errorMessage.includes("Requested entity was not found") || errorMessage.includes("API_KEY_INVALID")) {
     if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
       await window.aistudio.openSelectKey();
+    } else {
+      // Caso contrário, limpa a chave local para forçar novo input no onboarding
+      localStorage.removeItem('VIC_API_KEY');
+      window.location.reload();
     }
   }
   throw error;
