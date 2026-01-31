@@ -6,6 +6,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Total English - Vic AI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+    
+    <!-- SEGURANÇA: Polifill para evitar 'process is not defined' em produção -->
+    <script>
+        window.process = window.process || { env: {} };
+        
+        // Captura erros fatais para não deixar a tela em branco
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Erro Fatal:', msg, error);
+            const root = document.getElementById('root');
+            if (root && root.innerHTML === '') {
+                root.innerHTML = `
+                    <div style="padding: 20px; text-align: center; font-family: sans-serif; color: #333;">
+                        <h2 style="color: #B22234;">Ops! Algo deu errado.</h2>
+                        <p>O aplicativo não conseguiu iniciar. Isso geralmente acontece por falta de configuração da chave API ou cache do navegador.</p>
+                        <button onclick="localStorage.clear(); location.reload();" style="padding: 10px 20px; background: #1E40AF; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            Limpar Dados e Reiniciar
+                        </button>
+                    </div>
+                `;
+            }
+            return false;
+        };
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -24,7 +48,6 @@
             70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(30, 64, 175, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(30, 64, 175, 0); }
         }
-        /* Custom scrollbar for better UI on web */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }

@@ -2,28 +2,37 @@
 import { GoogleGenAI, Modality, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
-// Função ultra-segura para obter a chave sem quebrar o código
+/**
+ * Busca a chave API de forma segura.
+ * Prioridade: 
+ * 1. Objeto Global window.process (injetado por ferramentas de build ou nosso polifill)
+ * 2. LocalStorage (salvo durante o onboarding)
+ */
 const getApiKey = (): string => {
-  // 1. Tenta buscar de forma segura no objeto global (previne ReferenceError)
+  let key = '';
+  
   try {
-    // Verifica se process existe no escopo global de forma que não lance exceção
-    const envKey = (window as any).process?.env?.API_KEY;
-    if (envKey) return envKey;
-  } catch (e) {}
+    // Acesso ultra-seguro para evitar ReferenceError
+    if (typeof window !== 'undefined') {
+      const globalProcess = (window as any).process;
+      if (globalProcess && globalProcess.env && globalProcess.env.API_KEY) {
+        key = globalProcess.env.API_KEY;
+      }
+    }
+    
+    if (!key && typeof localStorage !== 'undefined') {
+      key = localStorage.getItem('VIC_API_KEY') || '';
+    }
+  } catch (e) {
+    console.warn("Erro ao acessar armazenamento de chaves:", e);
+  }
 
-  // 2. Tenta buscar no localStorage (usado na Hostinger após o Onboarding)
-  try {
-    const savedKey = localStorage.getItem('VIC_API_KEY');
-    if (savedKey) return savedKey;
-  } catch (e) {}
-
-  return '';
+  return key;
 };
 
 const getAI = () => {
   const key = getApiKey();
-  if (!key) {
-    // Em vez de lançar erro fatal, retornamos um sinal para o app lidar
+  if (!key || key.length < 10) {
     throw new Error("CHAVE_AUSENTE");
   }
   return new GoogleGenAI({ apiKey: key });
@@ -31,17 +40,23 @@ const getAI = () => {
 
 async function handleGeminiError(error: any) {
   const errorMessage = error?.message || "";
+  console.error("Gemini API Error:", errorMessage);
   
   if (errorMessage === "CHAVE_AUSENTE" || 
       errorMessage.includes("API_KEY_INVALID") || 
       errorMessage.includes("Requested entity was not found")) {
     
-    // Se estiver no ambiente do Google, tenta o seletor deles
+    // Se estiver no ambiente específico do Google, tenta abrir o seletor deles
     if (typeof window !== 'undefined' && (window as any).aistudio?.openSelectKey) {
       await (window as any).aistudio.openSelectKey();
     } else {
-      // Caso contrário, limpa e avisa o sistema de Onboarding
-      localStorage.removeItem('VIC_API_KEY');
+      // Se estiver na Hostinger/Web normal, remove a chave inválida para forçar novo input
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('VIC_API_KEY');
+      }
+      // Avisa o usuário que a chave deu erro
+      alert("A chave API do Gemini parece ser inválida. Por favor, configure uma nova no próximo passo.");
+      window.location.reload();
     }
   }
   throw error;
