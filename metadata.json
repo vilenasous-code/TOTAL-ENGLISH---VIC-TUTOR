@@ -1,0 +1,8 @@
+{
+  "name": "Total English - Vic AI Tutor",
+  "description": "A humanized English tutoring app for Brazilians, featuring Vic AI. Real-time conversation, personalized feedback, and gamified progression using neuro-psychopedagogy principles.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
